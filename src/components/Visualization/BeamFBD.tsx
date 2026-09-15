@@ -165,27 +165,38 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                   strokeDasharray="4 3"
                 />
                 {arrows}
-                {/* Clear, elevated badge */}
-                <rect
-                  x={(sx1 + sx2) / 2 - 58}
-                  y={beamY - Math.max(h1, h2) - 24}
-                  width="116"
-                  height="20"
-                  rx="5"
-                  fill="#ffffff"
-                  stroke="#0284c7"
-                  strokeWidth="1.4"
-                />
-                <text
-                  x={(sx1 + sx2) / 2}
-                  y={beamY - Math.max(h1, h2) - 10}
-                  textAnchor="middle"
-                  className="text-[10px] font-sans font-bold fill-sky-900 tabular-nums"
-                >
-                  {load.type === 'udl'
+                {/* Clear, elevated badge with dynamic width and adaptive font size */}
+                {(() => {
+                  const labelText = load.type === 'udl'
                     ? `${formatNum(w1, 4)} ${units.distLoad} ↓`
-                    : `${formatNum(w1, 4)} → ${formatNum(w2, 4)} ${units.distLoad}`}
-                </text>
+                    : `${formatNum(w1, 4)} → ${formatNum(w2, 4)} ${units.distLoad}`;
+                  const badgeW = Math.max(100, labelText.length * 6.5 + 20);
+                  const midX = (sx1 + sx2) / 2;
+                  const fontSize = labelText.length > 20 ? 'text-[9px]' : 'text-[10px]';
+
+                  return (
+                    <g>
+                      <rect
+                        x={midX - badgeW / 2}
+                        y={beamY - Math.max(h1, h2) - 24}
+                        width={badgeW}
+                        height="20"
+                        rx="5"
+                        fill="#ffffff"
+                        stroke="#0284c7"
+                        strokeWidth="1.4"
+                      />
+                      <text
+                        x={midX}
+                        y={beamY - Math.max(h1, h2) - 10}
+                        textAnchor="middle"
+                        className={`${fontSize} font-sans font-bold fill-sky-900 tabular-nums`}
+                      >
+                        {labelText}
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             );
           })}
@@ -234,26 +245,36 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                   />
                 )}
 
-                {/* Prominent Label Badge */}
-                <rect
-                  x={sx - 65}
-                  y={cy - r - 26}
-                  width="130"
-                  height="20"
-                  rx="5"
-                  fill="#ffffff"
-                  stroke={color}
-                  strokeWidth="1.4"
-                />
-                <text
-                  x={sx}
-                  y={cy - r - 12}
-                  textAnchor="middle"
-                  className="text-[10px] font-sans font-bold tabular-nums"
-                  fill={color}
-                >
-                  M = {formatNum(load.magnitude, 4)} {units.moment} ({isCw ? 'CW ↻' : 'CCW ↺'})
-                </text>
+                {/* Prominent Label Badge with adaptive width */}
+                {(() => {
+                  const momentText = `M = ${formatNum(load.magnitude, 4)} ${units.moment} (${isCw ? 'CW ↻' : 'CCW ↺'})`;
+                  const mBadgeW = Math.max(110, momentText.length * 6.5 + 20);
+                  const fontSize = momentText.length > 22 ? 'text-[9px]' : 'text-[10px]';
+
+                  return (
+                    <g>
+                      <rect
+                        x={sx - mBadgeW / 2}
+                        y={cy - r - 26}
+                        width={mBadgeW}
+                        height="20"
+                        rx="5"
+                        fill="#ffffff"
+                        stroke={color}
+                        strokeWidth="1.4"
+                      />
+                      <text
+                        x={sx}
+                        y={cy - r - 12}
+                        textAnchor="middle"
+                        className={`${fontSize} font-sans font-bold tabular-nums`}
+                        fill={color}
+                      >
+                        {momentText}
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             );
           })}
@@ -301,25 +322,35 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     fill={color}
                   />
                   {/* Clear Label Badge */}
-                  <rect
-                    x={sx - 50}
-                    y={yStart - 22}
-                    width="100"
-                    height="20"
-                    rx="5"
-                    fill="#ffffff"
-                    stroke={color}
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x={sx}
-                    y={yStart - 8}
-                    textAnchor="middle"
-                    className="text-[11px] font-sans font-extrabold tabular-nums"
-                    fill={color}
-                  >
-                    {formatNum(Math.abs(load.magnitude), 4)} {units.force} ↓
-                  </text>
+                  {(() => {
+                    const pointText = `${formatNum(Math.abs(load.magnitude), 4)} ${units.force} ↓`;
+                    const pBadgeW = Math.max(90, pointText.length * 6.8 + 18);
+                    const pFontSize = pointText.length > 16 ? 'text-[10px]' : 'text-[11px]';
+
+                    return (
+                      <g>
+                        <rect
+                          x={sx - pBadgeW / 2}
+                          y={yStart - 22}
+                          width={pBadgeW}
+                          height="20"
+                          rx="5"
+                          fill="#ffffff"
+                          stroke={color}
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x={sx}
+                          y={yStart - 8}
+                          textAnchor="middle"
+                          className={`${pFontSize} font-sans font-extrabold tabular-nums`}
+                          fill={color}
+                        >
+                          {pointText}
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </g>
               );
             } else {
@@ -346,25 +377,35 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     fill={color}
                   />
                   {/* Clear Label Badge */}
-                  <rect
-                    x={sx - 50}
-                    y={yStart + 6}
-                    width="100"
-                    height="20"
-                    rx="5"
-                    fill="#ffffff"
-                    stroke={color}
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x={sx}
-                    y={yStart + 20}
-                    textAnchor="middle"
-                    className="text-[11px] font-sans font-extrabold tabular-nums"
-                    fill={color}
-                  >
-                    {formatNum(Math.abs(load.magnitude), 4)} {units.force} ↑
-                  </text>
+                  {(() => {
+                    const pointText = `${formatNum(Math.abs(load.magnitude), 4)} ${units.force} ↑`;
+                    const pBadgeW = Math.max(90, pointText.length * 6.8 + 18);
+                    const pFontSize = pointText.length > 16 ? 'text-[10px]' : 'text-[11px]';
+
+                    return (
+                      <g>
+                        <rect
+                          x={sx - pBadgeW / 2}
+                          y={yStart + 6}
+                          width={pBadgeW}
+                          height="20"
+                          rx="5"
+                          fill="#ffffff"
+                          stroke={color}
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x={sx}
+                          y={yStart + 20}
+                          textAnchor="middle"
+                          className={`${pFontSize} font-sans font-extrabold tabular-nums`}
+                          fill={color}
+                        >
+                          {pointText}
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </g>
               );
             }
@@ -458,6 +499,14 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const yTop = beamY + beamHeight + 36;
             const yBottom = yTop + 36;
 
+            const reactionText = `R = ${formatNum(Math.abs(r.Fy), 4)} ${units.force} ${isUpward ? '↑' : '↓'}`;
+            const rBadgeW = Math.max(96, reactionText.length * 6.5 + 20);
+            const rFontSize = reactionText.length > 18 ? 'text-[10px]' : 'text-[11px]';
+
+            const rMomentText = `M_R = ${formatNum(Math.abs(r.M), 4)} ${units.moment}`;
+            const rMBadgeW = Math.max(90, rMomentText.length * 6.5 + 20);
+            const rMFontSize = rMomentText.length > 18 ? 'text-[9px]' : 'text-[10px]';
+
             return (
               <g key={`react_${r.supportId}`}>
                 {isUpward ? (
@@ -479,9 +528,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     />
                     {/* Clear Value Badge below */}
                     <rect
-                      x={sx - 52}
+                      x={sx - rBadgeW / 2}
                       y={yBottom + 4}
-                      width="104"
+                      width={rBadgeW}
                       height="20"
                       rx="5"
                       fill="#ffffff"
@@ -492,9 +541,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                       x={sx}
                       y={yBottom + 18}
                       textAnchor="middle"
-                      className="text-[11px] font-sans font-bold fill-emerald-800 tabular-nums"
+                      className={`${rFontSize} font-sans font-bold fill-emerald-800 tabular-nums`}
                     >
-                      R = {formatNum(Math.abs(r.Fy))} {units.force} ↑
+                      {reactionText}
                     </text>
                   </g>
                 ) : (
@@ -515,9 +564,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     />
                     {/* Value Badge below */}
                     <rect
-                      x={sx - 52}
+                      x={sx - rBadgeW / 2}
                       y={yBottom + 4}
-                      width="104"
+                      width={rBadgeW}
                       height="20"
                       rx="5"
                       fill="#ffffff"
@@ -528,9 +577,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                       x={sx}
                       y={yBottom + 18}
                       textAnchor="middle"
-                      className="text-[11px] font-sans font-bold fill-emerald-800 tabular-nums"
+                      className={`${rFontSize} font-sans font-bold fill-emerald-800 tabular-nums`}
                     >
-                      R = {formatNum(Math.abs(r.Fy))} {units.force} ↓
+                      {reactionText}
                     </text>
                   </g>
                 )}
@@ -552,9 +601,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     />
                     {/* Moment Badge with ample margin */}
                     <rect
-                      x={sx - 120}
+                      x={sx - rMBadgeW - 14}
                       y={beamY + beamHeight / 2 - 10}
-                      width="106"
+                      width={rMBadgeW}
                       height="20"
                       rx="5"
                       fill="#ffffff"
@@ -562,12 +611,12 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                       strokeWidth="1.4"
                     />
                     <text
-                      x={sx - 67}
+                      x={sx - rMBadgeW / 2 - 14}
                       y={beamY + beamHeight / 2 + 4}
                       textAnchor="middle"
-                      className="text-[10px] font-sans font-bold fill-emerald-800 tabular-nums"
+                      className={`${rMFontSize} font-sans font-bold fill-emerald-800 tabular-nums`}
                     >
-                      M_R = {formatNum(Math.abs(r.M))} {units.moment}
+                      {rMomentText}
                     </text>
                   </g>
                 )}
