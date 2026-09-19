@@ -147,7 +147,7 @@ export const LoadsManager: React.FC<LoadsManagerProps> = ({
         <div className="text-[11px] font-medium text-slate-500 mb-1.5">
           Select Load or Moment to Apply:
         </div>
-        <div className="grid grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {(
             [
               'point_down',

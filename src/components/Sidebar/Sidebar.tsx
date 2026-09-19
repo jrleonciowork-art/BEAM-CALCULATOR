@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const totalEntities = supports.length + loads.length;
 
   return (
-    <aside className="w-full lg:w-[390px] xl:w-[410px] flex-shrink-0 bg-slate-50/80 border-r border-slate-200 h-[calc(100vh-3.5rem)] overflow-y-auto p-4 space-y-4 select-none">
+    <aside className="w-full lg:w-[390px] xl:w-[410px] flex-shrink-0 bg-slate-50/80 border-r border-slate-200 h-auto lg:h-[calc(100dvh-3.5rem)] overflow-y-auto p-3 sm:p-4 space-y-4 select-none">
       {/* Segmented 2-Tab Navigation */}
       <div className="bg-slate-200/80 p-1 rounded-xl flex items-center gap-1 shadow-inner">
         <button

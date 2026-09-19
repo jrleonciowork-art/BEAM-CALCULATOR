@@ -50,8 +50,20 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
     }
   };
 
+  const handleTouch = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (!svgRef.current || e.touches.length === 0) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.touches[0].clientX - rect.left;
+    const currentSvgX = (clientX / rect.width) * svgWidth;
+    if (currentSvgX >= marginX - 15 && currentSvgX <= svgWidth - marginX + 15) {
+      onHoverX(fromSvgX(currentSvgX));
+    } else {
+      onHoverX(null);
+    }
+  };
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm relative overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
@@ -60,7 +72,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
           </span>
         </div>
         {hoverX !== null && (
-          <div className="px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold tabular-nums">
+          <div className="px-2 sm:px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] sm:text-xs font-bold tabular-nums">
             x = {formatNum(hoverX, 4)} {units.length}
           </div>
         )}
@@ -71,9 +83,13 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
         <svg
           ref={svgRef}
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full h-auto min-w-[720px] cursor-crosshair"
+          className="w-full h-auto min-w-[580px] sm:min-w-[720px] cursor-crosshair"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => onHoverX(null)}
+          onTouchStart={handleTouch}
+          onTouchMove={handleTouch}
+          onTouchEnd={() => onHoverX(null)}
+          style={{ touchAction: 'pan-y' }}
         >
           <defs>
             {/* Beam Metallic Profile */}

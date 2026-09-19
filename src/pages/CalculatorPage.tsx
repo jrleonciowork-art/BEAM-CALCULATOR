@@ -25,10 +25,14 @@ import { BeamFBD } from '../components/Visualization/BeamFBD';
 import { CrossSectionInspector } from '../components/Visualization/CrossSectionInspector';
 import { DiagramsView } from '../components/Visualization/DiagramsView';
 import { CalculationStepsModal } from '../components/Educational/CalculationStepsModal';
+import { SlidersHorizontal, BarChart3, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const STORAGE_KEY = 'beamlab_v1_state';
 
 export const CalculatorPage: React.FC = () => {
+  // Mobile responsive tab state ('editor' | 'results')
+  const [mobileTab, setMobileTab] = useState<'editor' | 'results'>('editor');
+
   // Try loading saved state from Local Storage
   const loadSavedState = () => {
     try {
@@ -281,24 +285,116 @@ export const CalculatorPage: React.FC = () => {
         degreeOfIndeterminacy={analysisResult.degreeOfIndeterminacy}
       />
 
+      {/* Mobile Navigation Tabs (< lg) */}
+      <div className="lg:hidden sticky top-14 z-20 bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-2 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setMobileTab('editor')}
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileTab === 'editor'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>1. Setup & Loads</span>
+          <span
+            className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+              mobileTab === 'editor'
+                ? 'bg-indigo-700 text-white'
+                : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            {supports.length + loads.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileTab('results')}
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileTab === 'results'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>2. Diagrams & Results</span>
+          {analysisResult.isStable && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          )}
+        </button>
+      </div>
+
       {/* Main Layout Container */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar: Inputs & Icon-driven Toolbox */}
-        <Sidebar
-          beam={beam}
-          supports={supports}
-          loads={loads}
-          unitSystem={unitSystem}
-          onUpdateBeam={setBeam}
-          onAddSupport={handleAddSupport}
-          onRemoveSupport={handleRemoveSupport}
-          onAddLoad={handleAddLoad}
-          onRemoveLoad={handleRemoveLoad}
-          onSelectPreset={handleSelectPreset}
-        />
+        <div
+          className={`w-full lg:w-auto flex-col ${
+            mobileTab === 'editor' ? 'flex flex-1 overflow-y-auto' : 'hidden lg:flex'
+          }`}
+        >
+          <Sidebar
+            beam={beam}
+            supports={supports}
+            loads={loads}
+            unitSystem={unitSystem}
+            onUpdateBeam={setBeam}
+            onAddSupport={handleAddSupport}
+            onRemoveSupport={handleRemoveSupport}
+            onAddLoad={handleAddLoad}
+            onRemoveLoad={handleRemoveLoad}
+            onSelectPreset={handleSelectPreset}
+          />
+
+          {/* Mobile CTA: Proceed to results */}
+          <div className="lg:hidden p-3 bg-white border-t border-slate-200 sticky bottom-0 z-20 shadow-md">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileTab('results');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <span>View Diagrams & Analysis</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
         {/* Right Main Panel: FBD, Exact Cross-Section Query & Graphs */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50">
+        <main
+          className={`flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-4 bg-slate-50 ${
+            mobileTab === 'results' ? 'block' : 'hidden lg:block'
+          }`}
+        >
+          {/* Mobile Quick Navigation Pill */}
+          <div className="lg:hidden flex items-center justify-between pb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileTab('editor');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Edit Model & Loads</span>
+            </button>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  analysisResult.isStable ? 'bg-emerald-500' : 'bg-rose-500'
+                }`}
+              />
+              <span>
+                {analysisResult.isStable ? 'Equilibrium OK' : 'Unstable'} ({beam.length}{' '}
+                {unitSystem === 'metric' ? 'm' : 'ft'})
+              </span>
+            </div>
+          </div>
+
           {/* Interactive Free Body Diagram */}
           <BeamFBD
             beam={beam}

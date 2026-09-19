@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useEffect, useCallback } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -194,9 +194,22 @@ interface BeamSceneProps {
 }
 
 /**
- * Dynamic Camera Controller that executes a cinematic fly-through zoom on launch
+ * Dynamic Camera Controller that adjusts for mobile portrait aspect ratios
+ * and executes a cinematic fly-through zoom on launch
  */
 const CameraController: React.FC<{ isLaunching?: boolean }> = ({ isLaunching }) => {
+  const { size, camera } = useThree();
+  const aspect = size.width / Math.max(1, size.height);
+
+  useEffect(() => {
+    // In mobile portrait (aspect < 1), zoom camera out so horizontal beam fits comfortably
+    if (aspect < 1) {
+      camera.position.z = THREE.MathUtils.clamp((13.0 / aspect) * 0.78, 14.0, 22.0);
+    } else {
+      camera.position.z = 13.0;
+    }
+  }, [aspect, camera]);
+
   useFrame((state, delta) => {
     if (isLaunching) {
       // Cinematic zoom-in accelerating into the beam
@@ -252,7 +265,7 @@ export const BeamScene: React.FC<BeamSceneProps> = ({ onDeflectionValue, isLaunc
 
   return (
     <div
-      className="w-full h-full cursor-ns-resize select-none overflow-hidden"
+      className="w-full h-full cursor-ns-resize select-none overflow-hidden touch-none"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

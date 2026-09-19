@@ -40,29 +40,29 @@ export const CalculationStepsModal: React.FC<CalculationStepsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center">
-              <BookOpen className="w-5 h-5" />
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center flex-shrink-0">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-1.5 sm:gap-2">
                 Detailed Calculation Steps
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
                 Equilibrium Derivations & Segment Piecewise Equations
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 sm:space-x-2">
             <button
               type="button"
               onClick={handleCopyText}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors cursor-pointer shadow-xs"
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors cursor-pointer shadow-xs whitespace-nowrap"
               title="Copy solution text to clipboard"
             >
               {copied ? (
@@ -73,7 +73,8 @@ export const CalculationStepsModal: React.FC<CalculationStepsModalProps> = ({
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Copy Solution</span>
+                  <span className="hidden sm:inline">Copy Solution</span>
+                  <span className="sm:hidden">Copy</span>
                 </>
               )}
             </button>
@@ -89,7 +90,7 @@ export const CalculationStepsModal: React.FC<CalculationStepsModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-5 text-sm">
+        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-sm">
           {result.calculationSteps.length === 0 ? (
             <div className="text-center py-8 text-slate-500 font-medium">
               No calculation steps available for current configuration.

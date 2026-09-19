@@ -52,35 +52,35 @@ export const DiagramsView: React.FC<DiagramsViewProps> = ({
     <div ref={containerRef} className="space-y-4">
       {/* Floating Hover Coordinates Banner (Light SaaS) */}
       {hoverX !== null && hoverVals && (
-        <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md border border-indigo-200 rounded-xl px-4 py-2.5 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center space-x-2">
-            <IBeamIcon className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="text-slate-500 font-medium">Cross-Section:</span>
-            <span className="text-indigo-700 font-bold text-sm tabular-nums">
-              x = {formatNum(hoverX, 4)} {units.length}
+        <div className="sticky top-14 sm:top-16 z-20 bg-white/95 backdrop-blur-md border border-indigo-200 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 shadow-lg flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-xs">
+          <div className="flex items-center space-x-1.5 sm:space-x-2">
+            <IBeamIcon className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+            <span className="text-slate-500 font-medium">x:</span>
+            <span className="text-indigo-700 font-bold text-xs sm:text-sm tabular-nums">
+              {formatNum(hoverX, 4)} {units.length}
             </span>
           </div>
 
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-              <span className="text-slate-500 font-medium">Shear V:</span>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-[11px] sm:text-xs">
+            <div className="flex items-center space-x-1 sm:space-x-1.5">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-blue-600 flex-shrink-0" />
+              <span className="text-slate-500 font-medium">V:</span>
               <span className={`font-bold tabular-nums ${hoverVals.shear >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {hoverVals.shear > 0 ? '+' : ''}{formatNum(hoverVals.shear, 4)} {units.force}
               </span>
             </div>
 
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-              <span className="text-slate-500 font-medium">Moment M:</span>
+            <div className="flex items-center space-x-1 sm:space-x-1.5">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-indigo-600 flex-shrink-0" />
+              <span className="text-slate-500 font-medium">M:</span>
               <span className={`font-bold tabular-nums ${hoverVals.moment >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {hoverVals.moment > 0 ? '+' : ''}{formatNum(hoverVals.moment, 4)} {units.moment}
               </span>
             </div>
 
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-600" />
-              <span className="text-slate-500 font-medium">Deflection δ:</span>
+            <div className="flex items-center space-x-1 sm:space-x-1.5">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-600 flex-shrink-0" />
+              <span className="text-slate-500 font-medium">δ:</span>
               <span className="text-amber-700 font-bold tabular-nums">
                 {formatNum(hoverVals.deflection, 4)} {units.deflection}
               </span>
@@ -226,23 +226,23 @@ const DiagramCard: React.FC<DiagramCardProps> = ({
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm relative overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
         <div className="flex items-center space-x-2">
           {icon}
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
             {title}
           </h3>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:space-x-2">
           {customBadge}
           {maxDisplay && (
-            <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md tabular-nums">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md tabular-nums">
               {maxDisplay}
             </span>
           )}
-          <span className="text-[11px] font-semibold text-slate-400">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400">
             [{unit}]
           </span>
         </div>
@@ -252,7 +252,7 @@ const DiagramCard: React.FC<DiagramCardProps> = ({
       <div className="w-full overflow-x-auto select-none">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full h-auto min-w-[650px] cursor-crosshair"
+          className="w-full h-auto min-w-[580px] sm:min-w-[650px] cursor-crosshair"
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const clientX = e.clientX - rect.left;
@@ -263,6 +263,28 @@ const DiagramCard: React.FC<DiagramCardProps> = ({
             }
           }}
           onMouseLeave={() => onHoverX(null)}
+          onTouchStart={(e) => {
+            if (e.touches.length === 0) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clientX = e.touches[0].clientX - rect.left;
+            const currentSvgX = (clientX / rect.width) * svgWidth;
+            const rawX = (currentSvgX - marginX) / scaleX;
+            if (rawX >= 0 && rawX <= beamLength) {
+              onHoverX(rawX);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 0) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clientX = e.touches[0].clientX - rect.left;
+            const currentSvgX = (clientX / rect.width) * svgWidth;
+            const rawX = (currentSvgX - marginX) / scaleX;
+            if (rawX >= 0 && rawX <= beamLength) {
+              onHoverX(rawX);
+            }
+          }}
+          onTouchEnd={() => onHoverX(null)}
+          style={{ touchAction: 'pan-y' }}
         >
           <defs>
             {usePosNegColors ? (

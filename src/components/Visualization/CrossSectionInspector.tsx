@@ -140,10 +140,10 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
   );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3.5 relative overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm space-y-3.5 relative overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-2xs">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-2xs flex-shrink-0">
             <IBeamIcon className="w-4 h-4" />
           </div>
           <div>
@@ -175,7 +175,7 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
                   onChangeX(Math.max(0, Math.min(beam.length, val)));
                 }
               }}
-              className="w-32 bg-slate-50 hover:bg-white text-xs font-extrabold text-slate-900 border border-indigo-300 rounded-lg pl-9 pr-7 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all tabular-nums shadow-2xs"
+              className="w-28 sm:w-32 bg-slate-50 hover:bg-white text-xs font-extrabold text-slate-900 border border-indigo-300 rounded-lg pl-9 pr-7 py-1.5 sm:py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all tabular-nums shadow-2xs"
             />
             <span className="absolute right-2.5 text-xs font-bold text-slate-400 pointer-events-none">
               {units.length}
@@ -200,14 +200,14 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
           step="0.0001"
           value={xValue}
           onChange={(e) => onChangeX(parseFloat(e.target.value))}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 touch-manipulation"
         />
       </div>
 
       {/* Quick Jump Pills to Critical Points */}
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <span className="text-[11px] font-semibold text-slate-500 mr-1 flex items-center gap-1">
-          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0" />
           Jump to:
         </span>
         {uniqueJumpPoints.map((pt, i) => {
@@ -230,16 +230,16 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
       </div>
 
       {/* Exact Values Output Dashboard at this x */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 pt-1">
         {/* Shear V(x) */}
         <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-2.5 flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-            <ShearIcon className="w-3.5 h-3.5 text-blue-600" />
-            Shear V(x)
+            <ShearIcon className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+            <span className="truncate">Shear V(x)</span>
           </span>
-          <div className="mt-1 flex items-baseline space-x-1">
+          <div className="mt-1 flex items-baseline space-x-1 flex-wrap">
             <span
-              className={`text-lg font-black tracking-tight tabular-nums ${
+              className={`text-base sm:text-lg font-black tracking-tight tabular-nums ${
                 currentValues.V > 0
                   ? 'text-emerald-600'
                   : currentValues.V < 0
@@ -250,19 +250,19 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
               {currentValues.V > 0 ? '+' : ''}
               {formatNum(currentValues.V, 4)}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">{units.force}</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">{units.force}</span>
           </div>
         </div>
 
         {/* Moment M(x) */}
         <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-2.5 flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-            <MomentIcon className="w-3.5 h-3.5 text-indigo-600" />
-            Moment M(x)
+            <MomentIcon className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+            <span className="truncate">Moment M(x)</span>
           </span>
-          <div className="mt-1 flex items-baseline space-x-1">
+          <div className="mt-1 flex items-baseline space-x-1 flex-wrap">
             <span
-              className={`text-lg font-black tracking-tight tabular-nums ${
+              className={`text-base sm:text-lg font-black tracking-tight tabular-nums ${
                 currentValues.M > 0
                   ? 'text-emerald-600'
                   : currentValues.M < 0
@@ -273,35 +273,35 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
               {currentValues.M > 0 ? '+' : ''}
               {formatNum(currentValues.M, 4)}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">{units.moment}</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">{units.moment}</span>
           </div>
         </div>
 
         {/* Deflection delta(x) */}
         <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-2.5 flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-            <DeflectionIcon className="w-3.5 h-3.5 text-amber-600" />
-            Deflection δ(x)
+            <DeflectionIcon className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+            <span className="truncate">Deflection δ(x)</span>
           </span>
-          <div className="mt-1 flex items-baseline space-x-1">
-            <span className="text-lg font-black tracking-tight text-amber-700 tabular-nums">
+          <div className="mt-1 flex items-baseline space-x-1 flex-wrap">
+            <span className="text-base sm:text-lg font-black tracking-tight text-amber-700 tabular-nums">
               {formatNum(currentValues.deflection, 4)}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">{units.deflection}</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">{units.deflection}</span>
           </div>
         </div>
 
         {/* Slope theta(x) */}
         <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-2.5 flex flex-col justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-            <SlopeIcon className="w-3.5 h-3.5 text-violet-600" />
-            Slope θ(x)
+            <SlopeIcon className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
+            <span className="truncate">Slope θ(x)</span>
           </span>
-          <div className="mt-1 flex items-baseline space-x-1">
-            <span className="text-lg font-black tracking-tight text-slate-800 tabular-nums">
+          <div className="mt-1 flex items-baseline space-x-1 flex-wrap">
+            <span className="text-base sm:text-lg font-black tracking-tight text-slate-800 tabular-nums">
               {formatNum(currentValues.slope, 4)}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">rad</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">rad</span>
           </div>
         </div>
       </div>
