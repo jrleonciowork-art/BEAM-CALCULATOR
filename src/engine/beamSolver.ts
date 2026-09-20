@@ -7,7 +7,8 @@ import {
   AnalysisResult,
   Reaction,
   DiagramPoint,
-  CriticalPoint
+  CriticalPoint,
+  InternalHingeResult
 } from '../types/beam';
 import { Matrix } from './matrix';
 import { calculateEI, formatDeflection, normalizeBeamSegments } from './units';
@@ -97,7 +98,8 @@ export function analyzeBeam(
     equilibriumCheck: { sumFy: 0, sumM: 0, isBalanced: false },
     criticalPoints: [],
     piecewiseEquations: [],
-    calculationSteps: []
+    calculationSteps: [],
+    internalHinges: []
   };
 
   // 1. Basic validation
@@ -397,6 +399,25 @@ export function analyzeBeam(
   const KD = Matrix.multiplyVector(K, D);
   const reactions: Reaction[] = [];
 
+  // Extract internal hinge kinematics (deflection continuity, slope discontinuity, relative rotation)
+  const internalHinges: InternalHingeResult[] = hinges.map(h => {
+    const node = nodes.find(n => Math.abs(n.x - h.x) < 1e-5);
+    if (!node) return null;
+    const vRaw = D[node.vDof];
+    const deflection = formatDeflection(vRaw, unitSystem);
+    const thetaLeft = node.thetaLeftDof !== undefined ? D[node.thetaLeftDof] : 0;
+    const thetaRight = node.thetaRightDof !== undefined ? D[node.thetaRightDof] : 0;
+    const deltaTheta = thetaRight - thetaLeft;
+    return {
+      supportId: h.id,
+      x: h.x,
+      deflection,
+      thetaLeft,
+      thetaRight,
+      deltaTheta
+    };
+  }).filter(Boolean) as InternalHingeResult[];
+
   nodes.forEach(node => {
     if (node.support) {
       const rFy = KD[node.vDof] - F[node.vDof];
@@ -654,11 +675,21 @@ export function analyzeBeam(
   const criticalPoints: CriticalPoint[] = [];
 
   validSupports.forEach(s => {
-    criticalPoints.push({
-      x: s.x,
-      type: 'support',
-      label: s.type.toUpperCase()
-    });
+    if (s.type === 'hinge') {
+      const hData = internalHinges.find(h => Math.abs(h.x - s.x) < 1e-5);
+      criticalPoints.push({
+        x: s.x,
+        type: 'support',
+        label: `HINGE (M=0)`,
+        value: hData?.deflection
+      });
+    } else {
+      criticalPoints.push({
+        x: s.x,
+        type: 'support',
+        label: s.type.toUpperCase()
+      });
+    }
   });
 
   // Zero-Shear points (crossings where V crosses 0)
@@ -686,7 +717,9 @@ export function analyzeBeam(
     unitSystem,
     isDeterminate,
     degIndet,
-    true
+    true,
+    undefined,
+    internalHinges
   );
 
   return {
@@ -711,6 +744,7 @@ export function analyzeBeam(
     },
     criticalPoints,
     piecewiseEquations,
-    calculationSteps
+    calculationSteps,
+    internalHinges
   };
 }

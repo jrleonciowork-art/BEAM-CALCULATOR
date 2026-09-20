@@ -30,6 +30,7 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
   const segments = normalizeBeamSegments(beam);
   const localSection = getBeamSectionAt(segments, xValue, unitSystem);
   const isNonPrismatic = segments.length > 1 || segments.some((s) => s.isTapered);
+  const nearestHinge = result.internalHinges?.find((h) => Math.abs(h.x - xValue) < 0.02);
 
   // Calculate exact analytical shear V and moment M at this specific xValue
   const calculateExactValues = (x: number) => {
@@ -134,6 +135,11 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
     if (cp.type === 'zero_shear' && cp.x > 0 && cp.x < beam.length) {
       jumpPoints.push({ label: `V=0 @ ${formatNum(cp.x, 4)}`, x: cp.x });
     }
+  });
+
+  // Internal hinges
+  result.internalHinges?.forEach((h) => {
+    jumpPoints.push({ label: `Hinge (M=0) @ ${formatNum(h.x, 2)}`, x: h.x });
   });
 
   // Segment transitions for non-prismatic beams
@@ -319,6 +325,54 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Internal Hinge Inspection Banner */}
+      {nearestHinge && (
+        <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 space-y-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="font-black text-amber-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              Internal Hinge (Moment Released M = 0)
+            </span>
+            <span className="font-bold text-amber-800 text-[11px]">
+              x = {formatNum(nearestHinge.x, 4)} {units.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+            <div className="bg-white/90 p-2 rounded-lg border border-amber-200/60 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Deflection Δy</span>
+              <div className="font-black text-slate-900 text-sm tabular-nums mt-0.5">
+                {formatNum(nearestHinge.deflection, 4)} <span className="text-[10px] font-semibold text-slate-400">{units.deflection}</span>
+              </div>
+              <span className="text-[9px] text-emerald-700 font-bold block mt-0.5">Continuous Joint</span>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-amber-200/60 shadow-2xs">
+              <span className="text-[10px] font-bold text-blue-600 uppercase block">Left Slope θ_L</span>
+              <div className="font-black text-blue-900 text-sm tabular-nums mt-0.5">
+                {formatNum(nearestHinge.thetaLeft, 4)} <span className="text-[10px] font-semibold text-slate-400">rad</span>
+              </div>
+              <span className="text-[9px] text-slate-500 font-bold block mt-0.5">{formatNum((nearestHinge.thetaLeft * 180) / Math.PI, 4)}°</span>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-amber-200/60 shadow-2xs">
+              <span className="text-[10px] font-bold text-orange-600 uppercase block">Right Slope θ_R</span>
+              <div className="font-black text-orange-900 text-sm tabular-nums mt-0.5">
+                {formatNum(nearestHinge.thetaRight, 4)} <span className="text-[10px] font-semibold text-slate-400">rad</span>
+              </div>
+              <span className="text-[9px] text-slate-500 font-bold block mt-0.5">{formatNum((nearestHinge.thetaRight * 180) / Math.PI, 4)}°</span>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-amber-200/60 shadow-2xs">
+              <span className="text-[10px] font-bold text-amber-800 uppercase block">Relative Jump Δθ</span>
+              <div className="font-black text-amber-950 text-sm tabular-nums mt-0.5">
+                {formatNum(nearestHinge.deltaTheta, 4)} <span className="text-[10px] font-semibold text-slate-400">rad</span>
+              </div>
+              <span className="text-[9px] text-amber-700 font-bold block mt-0.5">{formatNum((nearestHinge.deltaTheta * 180) / Math.PI, 4)}°</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Non-Prismatic Rigidity Strip */}
       {isNonPrismatic && (

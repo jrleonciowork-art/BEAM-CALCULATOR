@@ -250,4 +250,55 @@ describe('Beam Structural Analysis Engine', () => {
     expect(res.maxAbsDeflection.value).toBeGreaterThan(10.67);
     expect(res.maxAbsDeflection.value).toBeLessThan(42.67);
   });
+
+  it('explicitly calculates internal hinge deflection continuity, slope discontinuity, and relative rotation', () => {
+    // L = 6m, Fixed at x=0, Hinge at x=3, Roller at x=6, E=200 GPa, I=100 (EI = 20000 kN*m^2)
+    // Point load P = 12 kN at hinge x = 3
+    const beam: BeamProperties = { length: 6, E: 200, I: 100 };
+    const supports: Support[] = [
+      { id: '1', type: 'fixed', x: 0 },
+      { id: '2', type: 'hinge', x: 3 },
+      { id: '3', type: 'roller', x: 6 }
+    ];
+    const loads: Load[] = [
+      { id: '1', type: 'point', x: 3, magnitude: 12 }
+    ];
+
+    const res = analyzeBeam(beam, supports, loads, 'metric');
+    expect(res.isStable).toBe(true);
+    expect(res.equilibriumCheck.isBalanced).toBe(true);
+
+    // Moment release at hinge
+    const ptHinge = res.diagramPoints.find(p => Math.abs(p.x - 3) < 1e-7);
+    expect(ptHinge).toBeDefined();
+    expect(Math.abs(ptHinge!.moment)).toBeLessThan(1e-4);
+
+    // Internal Hinge kinematics array
+    expect(res.internalHinges).toBeDefined();
+    expect(res.internalHinges!.length).toBe(1);
+
+    const hingeResult = res.internalHinges![0];
+    expect(hingeResult.x).toBe(3);
+
+    // 1. Deflection continuity: exact delta_y = -P*L1^3 / (3*EI) = -12*27 / (3*20000) = -0.0054 m = -5.4000 mm downward
+    expect(hingeResult.deflection).toBeCloseTo(-5.4, 4);
+
+    // 2. Slope discontinuity:
+    // Left rotation theta_L = -P*L1^2 / (2*EI) = -12*9 / (2*20000) = -0.0027 rad
+    expect(hingeResult.thetaLeft).toBeCloseTo(-0.0027, 4);
+
+    // Right rotation theta_R: rigid link pivoting to 0 at x=6: theta_R = +0.0018 rad
+    expect(hingeResult.thetaRight).toBeCloseTo(0.0018, 4);
+
+    // 3. Relative rotation difference: deltaTheta = theta_R - theta_L = 0.0018 - (-0.0027) = +0.0045 rad
+    expect(hingeResult.deltaTheta).toBeCloseTo(0.0045, 4);
+
+    // Deflection is equal across hinge in diagramPoints
+    const ptLeft = res.diagramPoints.find(p => Math.abs(p.x - 2.99999) < 1e-4);
+    const ptRight = res.diagramPoints.find(p => Math.abs(p.x - 3.00001) < 1e-4);
+    expect(ptLeft).toBeDefined();
+    expect(ptRight).toBeDefined();
+    expect(ptLeft!.deflection).toBeCloseTo(-5.4, 3);
+    expect(ptRight!.deflection).toBeCloseTo(-5.4, 3);
+  });
 });

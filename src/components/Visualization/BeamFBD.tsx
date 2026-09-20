@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { BeamProperties, Support, Load, Reaction, UnitSystem } from '../../types/beam';
+import React, { useRef, useState } from 'react';
+import { BeamProperties, Support, Load, Reaction, UnitSystem, InternalHingeResult } from '../../types/beam';
 import { UNIT_CONFIGS, formatNum, normalizeBeamSegments } from '../../engine/units';
 import { getBeamSectionAt } from '../../engine/beamSolver';
 
@@ -11,6 +11,7 @@ interface BeamFBDProps {
   unitSystem: UnitSystem;
   hoverX: number | null;
   onHoverX: (x: number | null) => void;
+  internalHinges?: InternalHingeResult[];
 }
 
 export const BeamFBD: React.FC<BeamFBDProps> = ({
@@ -20,9 +21,12 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
   reactions,
   unitSystem,
   hoverX,
-  onHoverX
+  onHoverX,
+  internalHinges = []
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [activeHingeId, setActiveHingeId] = useState<string | null>(null);
+  const [hoveredHingeId, setHoveredHingeId] = useState<string | null>(null);
   const units = UNIT_CONFIGS[unitSystem];
   const segments = normalizeBeamSegments(beam);
 
@@ -584,18 +588,166 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             }
 
             if (s.type === 'hinge') {
+              const hData = internalHinges.find((h) => Math.abs(h.x - s.x) < 1e-4);
+              const isHingeActive =
+                activeHingeId === s.id ||
+                hoveredHingeId === s.id ||
+                (hoverX !== null && Math.abs(hoverX - s.x) < 0.12);
+
+              const cardW = 246;
+              const cardH = 96;
+              const cardX = Math.max(15, Math.min(svgWidth - cardW - 15, sx - cardW / 2));
+              const cardY = beamCenterY - cardH - 22;
+
               return (
-                <g key={`hinge_${s.id}`} transform={`translate(${sx}, ${beamCenterY})`}>
-                  <circle cx="0" cy="0" r="7" fill="#ffffff" stroke="#d97706" strokeWidth="2.5" />
-                  <circle cx="0" cy="0" r="2" fill="#d97706" />
-                  <text
-                    x="0"
-                    y="-11"
-                    textAnchor="middle"
-                    className="text-[9px] font-sans font-bold fill-amber-700"
+                <g key={`hinge_${s.id}`}>
+                  {/* Hinge Pin Fixture (Clickable / Hoverable) */}
+                  <g
+                    transform={`translate(${sx}, ${beamCenterY})`}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveHingeId(activeHingeId === s.id ? null : s.id);
+                    }}
+                    onMouseEnter={() => setHoveredHingeId(s.id)}
+                    onMouseLeave={() => setHoveredHingeId(null)}
                   >
-                    HINGE (M=0)
-                  </text>
+                    {/* Pulsing ring when active */}
+                    {isHingeActive && (
+                      <circle
+                        cx="0"
+                        cy="0"
+                        r="12"
+                        fill="#fef3c7"
+                        stroke="#d97706"
+                        strokeWidth="1.6"
+                        strokeDasharray="3 2"
+                      />
+                    )}
+                    <circle cx="0" cy="0" r="7.5" fill="#ffffff" stroke="#d97706" strokeWidth="2.5" />
+                    <circle cx="0" cy="0" r="2.5" fill="#d97706" />
+                    <text
+                      x="0"
+                      y="-12"
+                      textAnchor="middle"
+                      className="text-[9px] font-sans font-bold fill-amber-800 select-none"
+                    >
+                      HINGE (M=0)
+                    </text>
+                  </g>
+
+                  {/* Interactive Hinge Analysis Card */}
+                  {isHingeActive && hData && (
+                    <g className="transition-all" pointerEvents="none">
+                      {/* Stem pointer connecting card to hinge */}
+                      <polygon
+                        points={`${sx - 7},${cardY + cardH} ${sx + 7},${cardY + cardH} ${sx},${beamCenterY - 10}`}
+                        fill="#ffffff"
+                        stroke="#d97706"
+                        strokeWidth="1.2"
+                      />
+                      {/* Card Body */}
+                      <rect
+                        x={cardX}
+                        y={cardY}
+                        width={cardW}
+                        height={cardH}
+                        rx="8"
+                        fill="#ffffff"
+                        stroke="#d97706"
+                        strokeWidth="1.6"
+                      />
+                      {/* Header Ribbon */}
+                      <path
+                        d={`M ${cardX},${cardY + 22} L ${cardX},${cardY + 8} Q ${cardX},${cardY} ${cardX + 8},${cardY} L ${cardX + cardW - 8},${cardY} Q ${cardX + cardW},${cardY} ${cardX + cardW},${cardY + 8} L ${cardX + cardW},${cardY + 22} Z`}
+                        fill="#fef3c7"
+                      />
+                      <text
+                        x={cardX + 10}
+                        y={cardY + 15}
+                        className="text-[10px] font-sans font-black fill-amber-900"
+                      >
+                        INTERNAL HINGE ANALYSIS (M = 0)
+                      </text>
+                      <text
+                        x={cardX + cardW - 10}
+                        y={cardY + 15}
+                        textAnchor="end"
+                        className="text-[9px] font-sans font-bold fill-amber-700"
+                      >
+                        x = {formatNum(s.x, 4)} {units.length}
+                      </text>
+
+                      {/* Content Values */}
+                      {/* 1. Deflection */}
+                      <text
+                        x={cardX + 10}
+                        y={cardY + 37}
+                        className="text-[9.5px] font-sans font-semibold fill-slate-600"
+                      >
+                        Deflection Δy:
+                      </text>
+                      <text
+                        x={cardX + cardW - 10}
+                        y={cardY + 37}
+                        textAnchor="end"
+                        className="text-[10px] font-sans font-extrabold fill-slate-900 tabular-nums"
+                      >
+                        {formatNum(hData.deflection, 4)} {units.deflection} (Continuous)
+                      </text>
+
+                      {/* 2. Left Slope */}
+                      <text
+                        x={cardX + 10}
+                        y={cardY + 53}
+                        className="text-[9.5px] font-sans font-semibold fill-blue-700"
+                      >
+                        Left-Side Slope θ_L:
+                      </text>
+                      <text
+                        x={cardX + cardW - 10}
+                        y={cardY + 53}
+                        textAnchor="end"
+                        className="text-[10px] font-sans font-extrabold fill-blue-900 tabular-nums"
+                      >
+                        {formatNum(hData.thetaLeft, 4)} rad ({formatNum((hData.thetaLeft * 180) / Math.PI, 4)}°)
+                      </text>
+
+                      {/* 3. Right Slope */}
+                      <text
+                        x={cardX + 10}
+                        y={cardY + 69}
+                        className="text-[9.5px] font-sans font-semibold fill-orange-700"
+                      >
+                        Right-Side Slope θ_R:
+                      </text>
+                      <text
+                        x={cardX + cardW - 10}
+                        y={cardY + 69}
+                        textAnchor="end"
+                        className="text-[10px] font-sans font-extrabold fill-orange-900 tabular-nums"
+                      >
+                        {formatNum(hData.thetaRight, 4)} rad ({formatNum((hData.thetaRight * 180) / Math.PI, 4)}°)
+                      </text>
+
+                      {/* 4. Relative Rotation Difference */}
+                      <text
+                        x={cardX + 10}
+                        y={cardY + 86}
+                        className="text-[9.5px] font-sans font-bold fill-amber-800"
+                      >
+                        Relative Jump Δθ:
+                      </text>
+                      <text
+                        x={cardX + cardW - 10}
+                        y={cardY + 86}
+                        textAnchor="end"
+                        className="text-[10.5px] font-sans font-black fill-amber-950 tabular-nums"
+                      >
+                        {formatNum(hData.deltaTheta, 4)} rad ({formatNum((hData.deltaTheta * 180) / Math.PI, 4)}°)
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             }

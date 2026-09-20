@@ -1,4 +1,4 @@
-import { BeamProperties, CalculationStepGroup, PiecewiseEquation, Reaction, Load, Support, UnitSystem } from '../types/beam';
+import { BeamProperties, CalculationStepGroup, PiecewiseEquation, Reaction, Load, Support, UnitSystem, InternalHingeResult } from '../types/beam';
 import { UNIT_CONFIGS, formatNum } from './units';
 
 interface SegmentCut {
@@ -15,7 +15,8 @@ export function generateCalculationSteps(
   isDeterminate: boolean,
   degreeOfIndeterminacy: number,
   isStable: boolean,
-  statusMessage?: string
+  statusMessage?: string,
+  internalHinges?: InternalHingeResult[]
 ): { calculationSteps: CalculationStepGroup[]; piecewiseEquations: PiecewiseEquation[] } {
   const units = UNIT_CONFIGS[unitSystem];
   const steps: CalculationStepGroup[] = [];
@@ -245,6 +246,27 @@ export function generateCalculationSteps(
       'At points where V(x) = 0, the bending moment M(x) is at a local maximum or minimum.'
     ]
   });
+
+  // Step 5: Internal Hinges Analysis (if applicable)
+  if (internalHinges && internalHinges.length > 0) {
+    const hingeLines: string[] = [];
+    internalHinges.forEach((h, hIdx) => {
+      hingeLines.push(
+        `\\textbf{Internal Hinge ${hIdx + 1} at } x = ${formatNum(h.x, 4)} \\text{ ${units.length}}:`,
+        `\\text{Bending Moment Release: } M(x) = 0 \\text{ ${units.moment}}`,
+        `\\text{Vertical Deflection: } \\Delta_y = ${formatNum(h.deflection, 4)} \\text{ ${units.deflection}} \\quad [\\text{Continuous: } \\Delta_{y,L} = \\Delta_{y,R}]`,
+        `\\text{Left-Side Rotation: } \\theta_L = ${formatNum(h.thetaLeft, 4)} \\text{ rad} \\quad (${formatNum((h.thetaLeft * 180) / Math.PI, 4)}^\\circ)`,
+        `\\text{Right-Side Rotation: } \\theta_R = ${formatNum(h.thetaRight, 4)} \\text{ rad} \\quad (${formatNum((h.thetaRight * 180) / Math.PI, 4)}^\\circ)`,
+        `\\text{Relative Rotation Jump: } \\Delta\\theta = \\theta_R - \\theta_L = ${formatNum(h.deltaTheta, 4)} \\text{ rad} \\quad (${formatNum((h.deltaTheta * 180) / Math.PI, 4)}^\\circ)`
+      );
+    });
+
+    steps.push({
+      title: '5. Internal Hinge Discontinuity Analysis',
+      description: 'Internal hinges release bending resistance (M = 0) while enforcing vertical shear transfer and deflection continuity. Angular slopes are discontinuous across the pin, resulting in a characteristic kink in the elastic curve:',
+      mathLines: hingeLines
+    });
+  }
 
   return { calculationSteps: steps, piecewiseEquations };
 }

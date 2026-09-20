@@ -77,6 +77,15 @@ export interface CalculationStepGroup {
   substeps?: string[];
 }
 
+export interface InternalHingeResult {
+  supportId: string;
+  x: number;
+  deflection: number; // Delta_y at hinge (mm or in)
+  thetaLeft: number;  // theta_L in rad
+  thetaRight: number; // theta_R in rad
+  deltaTheta: number; // Delta theta = theta_R - theta_L in rad
+}
+
 export interface AnalysisResult {
   isStable: boolean;
   statusMessage?: string;
@@ -101,6 +110,7 @@ export interface AnalysisResult {
   criticalPoints: CriticalPoint[];
   piecewiseEquations: PiecewiseEquation[];
   calculationSteps: CalculationStepGroup[];
+  internalHinges?: InternalHingeResult[];
 }
 
 export interface PresetBeam {

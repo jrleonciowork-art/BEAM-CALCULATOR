@@ -27,6 +27,7 @@ import { BeamFBD } from '../components/Visualization/BeamFBD';
 import { CrossSectionInspector } from '../components/Visualization/CrossSectionInspector';
 import { DiagramsView } from '../components/Visualization/DiagramsView';
 import { CalculationStepsModal } from '../components/Educational/CalculationStepsModal';
+import { DeviceNoticeToast } from '../components/Common/DeviceNoticeToast';
 import { SlidersHorizontal, BarChart3, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const STORAGE_KEY = 'beamlab_v1_state';
@@ -419,6 +420,7 @@ export const CalculatorPage: React.FC = () => {
             unitSystem={unitSystem}
             hoverX={hoverX !== null ? hoverX : inspectedX}
             onHoverX={setHoverX}
+            internalHinges={analysisResult.internalHinges}
           />
 
           {/* Exact Cross-Section Inspector & Numerical Query Tool */}
@@ -460,6 +462,9 @@ export const CalculatorPage: React.FC = () => {
         result={analysisResult}
         unitSystem={unitSystem}
       />
+
+      {/* Device Experience Recommendation Toast */}
+      <DeviceNoticeToast />
     </div>
   );
 };
