@@ -1,4 +1,4 @@
-import { UnitSystem } from '../types/beam';
+import { UnitSystem, BeamSegment, BeamProperties } from '../types/beam';
 
 export interface UnitConfig {
   length: string;
@@ -90,6 +90,46 @@ export function convertE(val: number, from: UnitSystem, to: UnitSystem): number 
 export function convertI(val: number, from: UnitSystem, to: UnitSystem): number {
   if (from === to) return val;
   return from === 'metric' ? val * 2.40251 : val / 2.40251;
+}
+
+/**
+ * Converts all beam segments between Metric and Imperial
+ */
+export function convertBeamSegments(
+  segments: BeamSegment[],
+  from: UnitSystem,
+  to: UnitSystem
+): BeamSegment[] {
+  if (from === to) return segments;
+  return segments.map((seg) => ({
+    ...seg,
+    xStart: convertLength(seg.xStart, from, to),
+    xEnd: convertLength(seg.xEnd, from, to),
+    E: convertE(seg.E, from, to),
+    I: convertI(seg.I, from, to),
+    IEnd: seg.IEnd !== undefined ? convertI(seg.IEnd, from, to) : undefined
+  }));
+}
+
+/**
+ * Ensures beam has at least one valid segment, converting legacy E/I if needed
+ */
+export function normalizeBeamSegments(beam: BeamProperties): BeamSegment[] {
+  if (beam.segments && beam.segments.length > 0) {
+    return beam.segments;
+  }
+  const defaultE = beam.E ?? 200;
+  const defaultI = beam.I ?? 100;
+  return [
+    {
+      id: 'seg_default_1',
+      xStart: 0,
+      xEnd: beam.length,
+      E: defaultE,
+      I: defaultI,
+      isTapered: false
+    }
+  ];
 }
 
 /**

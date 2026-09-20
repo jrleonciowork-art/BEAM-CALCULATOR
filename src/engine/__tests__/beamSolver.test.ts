@@ -178,4 +178,76 @@ describe('Beam Structural Analysis Engine', () => {
     expect(res.isStable).toBe(false);
     expect(res.statusMessage).toContain('Insufficient supports');
   });
+
+  it('correctly calculates stepped non-prismatic cantilever beam with exact analytical deflection', () => {
+    // Stepped cantilever: 4m total, 0-2m (I=200), 2-4m (I=100), E=200 GPa
+    // Tip load P = 10 kN downward at x = 4
+    const beam: BeamProperties = {
+      length: 4,
+      E: 200,
+      I: 200,
+      segments: [
+        { id: 's1', xStart: 0, xEnd: 2, E: 200, I: 200 },
+        { id: 's2', xStart: 2, xEnd: 4, E: 200, I: 100 }
+      ]
+    };
+    const supports: Support[] = [
+      { id: '1', type: 'fixed', x: 0 }
+    ];
+    const loads: Load[] = [
+      { id: '1', type: 'point', x: 4, magnitude: 10 }
+    ];
+
+    const res = analyzeBeam(beam, supports, loads, 'metric');
+    expect(res.isStable).toBe(true);
+    expect(res.equilibriumCheck.isBalanced).toBe(true);
+
+    // Fixed reactions
+    const rFixed = res.reactions[0];
+    expect(rFixed.Fy).toBeCloseTo(10, 4);
+    expect(Math.abs(rFixed.M)).toBeCloseTo(40, 4);
+
+    // Tip deflection analytical: delta(4) = int_0^4 P*(4-x)^2 / EI dx = 4.6667 + 1.3333 = 6.0000 mm
+    expect(res.maxAbsDeflection.value).toBeCloseTo(6.0, 4);
+    expect(res.maxAbsDeflection.x).toBeCloseTo(4, 2);
+
+    // Diagram points have local E and I
+    const ptMid1 = res.diagramPoints.find(p => Math.abs(p.x - 1) < 0.05);
+    const ptMid2 = res.diagramPoints.find(p => Math.abs(p.x - 3) < 0.05);
+    expect(ptMid1).toBeDefined();
+    expect(ptMid1!.I).toBe(200);
+    expect(ptMid2).toBeDefined();
+    expect(ptMid2!.I).toBe(100);
+  });
+
+  it('correctly calculates tapered beam with multi-element discretization', () => {
+    // Tapered cantilever: 4m, E=200 GPa, I goes from 200 down to 50
+    const beam: BeamProperties = {
+      length: 4,
+      E: 200,
+      I: 200,
+      segments: [
+        { id: 's1', xStart: 0, xEnd: 4, E: 200, I: 200, isTapered: true, IEnd: 50 }
+      ]
+    };
+    const supports: Support[] = [
+      { id: '1', type: 'fixed', x: 0 }
+    ];
+    const loads: Load[] = [
+      { id: '1', type: 'point', x: 4, magnitude: 20 }
+    ];
+
+    const res = analyzeBeam(beam, supports, loads, 'metric');
+    expect(res.isStable).toBe(true);
+    expect(res.equilibriumCheck.isBalanced).toBe(true);
+
+    const rFixed = res.reactions[0];
+    expect(rFixed.Fy).toBeCloseTo(20, 3);
+    expect(Math.abs(rFixed.M)).toBeCloseTo(80, 3);
+
+    // Discretized tapered section should be more flexible than constant I=200 (which gives 10.67mm)
+    // and stiffer than constant I=50 (which gives 42.67mm)
+    expect(res.maxAbsDeflection.value).toBeGreaterThan(10.67);
+    expect(res.maxAbsDeflection.value).toBeLessThan(42.67);
+  });
 });

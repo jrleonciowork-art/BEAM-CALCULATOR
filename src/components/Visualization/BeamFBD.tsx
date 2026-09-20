@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { BeamProperties, Support, Load, Reaction, UnitSystem } from '../../types/beam';
-import { UNIT_CONFIGS, formatNum } from '../../engine/units';
+import { UNIT_CONFIGS, formatNum, normalizeBeamSegments } from '../../engine/units';
+import { getBeamSectionAt } from '../../engine/beamSolver';
 
 interface BeamFBDProps {
   beam: BeamProperties;
@@ -23,14 +24,30 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const units = UNIT_CONFIGS[unitSystem];
+  const segments = normalizeBeamSegments(beam);
 
   const svgWidth = 1060;
   const svgHeight = 280;
   const marginX = 115; // Generous margin so labels at x=0 are never clipped
-  const beamY = 135;
-  const beamHeight = 16;
+  const beamCenterY = 143; // Centerline of beam
   const usableWidth = svgWidth - 2 * marginX;
   const scaleX = beam.length > 0 ? usableWidth / beam.length : 1;
+
+  // Calculate min and max I for visual thickness scaling of non-prismatic sections
+  const allIValues = segments.flatMap((s) => (s.isTapered && s.IEnd ? [s.I, s.IEnd] : [s.I]));
+  const minI = Math.min(...allIValues);
+  const maxI = Math.max(...allIValues);
+
+  const getSectionThickness = (IVal: number) => {
+    if (minI === maxI) return 16;
+    const ratio = Math.max(0, Math.min(1, (IVal - minI) / (maxI - minI || 1)));
+    return 12 + 22 * Math.sqrt(ratio); // between 12px and 34px
+  };
+
+  const getHalfHeightAt = (xCoord: number) => {
+    const sec = getBeamSectionAt(segments, xCoord, unitSystem);
+    return getSectionThickness(sec.I) / 2;
+  };
 
   const toSvgX = (x: number) => marginX + x * scaleX;
   const fromSvgX = (svgX: number) => {
@@ -107,12 +124,12 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
 
           {/* Dimension Line across the bottom */}
           <g stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3">
-            <line x1={marginX} y1={beamY + 105} x2={svgWidth - marginX} y2={beamY + 105} />
-            <line x1={marginX} y1={beamY + 97} x2={marginX} y2={beamY + 113} />
-            <line x1={svgWidth - marginX} y1={beamY + 97} x2={svgWidth - marginX} y2={beamY + 113} />
+            <line x1={marginX} y1={beamCenterY + 100} x2={svgWidth - marginX} y2={beamCenterY + 100} />
+            <line x1={marginX} y1={beamCenterY + 92} x2={marginX} y2={beamCenterY + 108} />
+            <line x1={svgWidth - marginX} y1={beamCenterY + 92} x2={svgWidth - marginX} y2={beamCenterY + 108} />
             <text
               x={svgWidth / 2}
-              y={beamY + 121}
+              y={beamCenterY + 116}
               textAnchor="middle"
               className="text-[11px] font-sans font-bold fill-slate-600 tabular-nums"
             >
@@ -136,7 +153,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const h1 = Math.min(50, Math.max(20, (w1 / maxRefLoad) * 44));
             const h2 = Math.min(50, Math.max(20, (w2 / maxRefLoad) * 44));
 
-            const polyPoints = `${sx1},${beamY} ${sx1},${beamY - h1} ${sx2},${beamY - h2} ${sx2},${beamY}`;
+            const yTip1 = beamCenterY - getHalfHeightAt(x1);
+            const yTip2 = beamCenterY - getHalfHeightAt(x2);
+            const polyPoints = `${sx1},${yTip1} ${sx1},${yTip1 - h1} ${sx2},${yTip2 - h2} ${sx2},${yTip2}`;
 
             // Clean, non-overlapping downward arrows pointing straight DOWN into the beam
             const arrowSpacing = 44;
@@ -144,10 +163,12 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const arrows: React.ReactNode[] = [];
 
             for (let i = 0; i <= numArrows; i++) {
+              const curX = x1 + (i / numArrows) * (x2 - x1);
               const ax = sx1 + (i / numArrows) * (sx2 - sx1);
               const ah = h1 + (i / numArrows) * (h2 - h1);
-              const yTop = beamY - ah;
-              const yTip = beamY; // Touches the top of the beam
+              const curHalfH = getHalfHeightAt(curX);
+              const yTip = beamCenterY - curHalfH;
+              const yTop = yTip - ah;
 
               arrows.push(
                 <g key={`udl_arrow_${load.id}_${i}`}>
@@ -188,13 +209,16 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     : `${formatNum(w1, 4)} → ${formatNum(w2, 4)} ${units.distLoad}`;
                   const badgeW = Math.max(100, labelText.length * 6.5 + 20);
                   const midX = (sx1 + sx2) / 2;
+                  const midXCoord = (x1 + x2) / 2;
+                  const midHalfH = getHalfHeightAt(midXCoord);
+                  const maxH = Math.max(h1, h2);
                   const fontSize = labelText.length > 20 ? 'text-[9px]' : 'text-[10px]';
 
                   return (
                     <g>
                       <rect
                         x={midX - badgeW / 2}
-                        y={beamY - Math.max(h1, h2) - 24}
+                        y={beamCenterY - midHalfH - maxH - 24}
                         width={badgeW}
                         height="20"
                         rx="5"
@@ -204,7 +228,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                       />
                       <text
                         x={midX}
-                        y={beamY - Math.max(h1, h2) - 10}
+                        y={beamCenterY - midHalfH - maxH - 10}
                         textAnchor="middle"
                         className={`${fontSize} font-sans font-bold fill-sky-900 tabular-nums`}
                       >
@@ -223,7 +247,8 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const sx = toSvgX(load.x);
             const isCw = load.momentDirection === 'cw';
             const r = 26;
-            const cy = beamY - 14;
+            const halfH = getHalfHeightAt(load.x);
+            const cy = beamCenterY - halfH - 14;
 
             // Draw clean circular arc
             // CW: starts at top-left, curves around clockwise, arrow points downward-right
@@ -232,23 +257,27 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
               ? `M ${sx - r + 4},${cy - 6} A ${r} ${r} 0 1 1 ${sx + 6},${cy - r + 3}`
               : `M ${sx + r - 4},${cy - 6} A ${r} ${r} 0 1 0 ${sx - 6},${cy - r + 3}`;
 
-            const color = isCw ? '#d97706' : '#7c3aed';
+            const color = '#9333ea'; // Bold Purple
 
             return (
-              <g key={`mom_${load.id}`}>
-                {/* Application center point */}
-                <circle cx={sx} cy={beamY} r="4.5" fill={color} />
-
-                {/* Curved Arc Body */}
+              <g key={`moment_${load.id}`}>
+                {/* Glowing Background Ring */}
+                <path
+                  d={arcPath}
+                  fill="none"
+                  stroke="#f3e8ff"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                />
+                {/* Main Curved Vector Arc */}
                 <path
                   d={arcPath}
                   fill="none"
                   stroke={color}
-                  strokeWidth="3.5"
+                  strokeWidth="3.2"
                   strokeLinecap="round"
                 />
-
-                {/* Explicit Arrowhead on the curve */}
+                {/* Precise Arrowhead on Tangent */}
                 {isCw ? (
                   <polygon
                     points={`${sx + 15},${cy - r + 3} ${sx + 4},${cy - r - 5} ${sx + 6},${cy - r + 8}`}
@@ -295,17 +324,84 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             );
           })}
 
-          {/* The Physical Beam Element */}
-          <rect
-            x={marginX}
-            y={beamY}
-            width={usableWidth}
-            height={beamHeight}
-            fill="url(#beamSteelGrad)"
-            stroke="#1e293b"
-            strokeWidth="2"
-            rx="2"
-          />
+          {/* The Physical Beam Element (stepped & tapered segments) */}
+          <g>
+            {segments.map((seg, idx) => {
+              const sx1 = toSvgX(seg.xStart);
+              const sx2 = toSvgX(seg.xEnd);
+              const h1 = getSectionThickness(seg.I);
+              const h2 = seg.isTapered && seg.IEnd ? getSectionThickness(seg.IEnd) : h1;
+              const yTop1 = beamCenterY - h1 / 2;
+              const yBot1 = beamCenterY + h1 / 2;
+              const yTop2 = beamCenterY - h2 / 2;
+              const yBot2 = beamCenterY + h2 / 2;
+
+              const isNonPrismatic = segments.length > 1 || seg.isTapered;
+
+              return (
+                <g key={`beam_seg_${idx}`}>
+                  {seg.isTapered && seg.IEnd ? (
+                    <polygon
+                      points={`${sx1},${yTop1} ${sx2},${yTop2} ${sx2},${yBot2} ${sx1},${yBot1}`}
+                      fill="url(#beamSteelGrad)"
+                      stroke="#1e293b"
+                      strokeWidth="2"
+                    />
+                  ) : (
+                    <rect
+                      x={sx1}
+                      y={yTop1}
+                      width={Math.max(0, sx2 - sx1)}
+                      height={h1}
+                      fill="url(#beamSteelGrad)"
+                      stroke="#1e293b"
+                      strokeWidth="2"
+                    />
+                  )}
+
+                  {/* Transition divider at internal segment boundary */}
+                  {idx > 0 && (
+                    <line
+                      x1={sx1}
+                      y1={Math.min(yTop1, beamCenterY - getSectionThickness(segments[idx - 1].isTapered && segments[idx - 1].IEnd ? segments[idx - 1].IEnd! : segments[idx - 1].I) / 2) - 8}
+                      x2={sx1}
+                      y2={Math.max(yBot1, beamCenterY + getSectionThickness(segments[idx - 1].isTapered && segments[idx - 1].IEnd ? segments[idx - 1].IEnd! : segments[idx - 1].I) / 2) + 8}
+                      stroke="#6366f1"
+                      strokeWidth="1.5"
+                      strokeDasharray="3 2"
+                    />
+                  )}
+
+                  {/* Segment Section Indicator Badge (if multi-segment or tapered) */}
+                  {isNonPrismatic && sx2 - sx1 > 50 && (
+                    <g pointerEvents="none">
+                      <rect
+                        x={(sx1 + sx2) / 2 - 28}
+                        y={beamCenterY - 7}
+                        width="56"
+                        height="14"
+                        rx="3"
+                        fill="#0f172a"
+                        fillOpacity="0.8"
+                        stroke="#64748b"
+                        strokeWidth="0.8"
+                      />
+                      <text
+                        x={(sx1 + sx2) / 2}
+                        y={beamCenterY + 3.5}
+                        textAnchor="middle"
+                        className="text-[8px] font-mono font-bold fill-slate-200 select-none"
+                      >
+                        {seg.isTapered && seg.IEnd
+                          ? `I:${formatNum(seg.I, 0)}→${formatNum(seg.IEnd, 0)}`
+                          : `I=${formatNum(seg.I, 0)}`}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </g>
 
           {/* Applied Point Loads (Explicit Vertical Vectors with Guaranteed Pointing Directions) */}
           {loads.map((load) => {
@@ -313,11 +409,12 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const sx = toSvgX(load.x);
             const isDown = load.magnitude >= 0;
             const arrowLen = 52;
+            const halfH = getHalfHeightAt(load.x);
 
             if (isDown) {
-              // DOWNWARD Point Load: starts above and points DOWN into top of beam (beamY)
-              const yStart = beamY - arrowLen;
-              const yTip = beamY;
+              // DOWNWARD Point Load: starts above and points DOWN into top of beam
+              const yTip = beamCenterY - halfH;
+              const yStart = yTip - arrowLen;
               const color = '#dc2626'; // Bold Red
 
               return (
@@ -370,9 +467,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                 </g>
               );
             } else {
-              // UPWARD Point Load: starts below and points UP into bottom of beam (beamY + beamHeight)
-              const yStart = beamY + beamHeight + arrowLen;
-              const yTip = beamY + beamHeight;
+              // UPWARD Point Load: starts below and points UP into bottom of beam
+              const yTip = beamCenterY + halfH;
+              const yStart = yTip + arrowLen;
               const color = '#16a34a'; // Bold Green
 
               return (
@@ -430,10 +527,11 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
           {/* Supports & Hinges Fixtures */}
           {supports.map((s) => {
             const sx = toSvgX(s.x);
+            const halfH = getHalfHeightAt(s.x);
 
             if (s.type === 'pin') {
               return (
-                <g key={`supp_${s.id}`} transform={`translate(${sx}, ${beamY + beamHeight})`}>
+                <g key={`supp_${s.id}`} transform={`translate(${sx}, ${beamCenterY + halfH})`}>
                   <circle cx="0" cy="4" r="3.5" fill="#ffffff" stroke="#475569" strokeWidth="2" />
                   <polygon points="0,4 -13,24 13,24" fill="#64748b" stroke="#334155" strokeWidth="1.5" />
                   <line x1="-16" y1="24" x2="16" y2="24" stroke="#334155" strokeWidth="2" />
@@ -444,7 +542,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
 
             if (s.type === 'roller') {
               return (
-                <g key={`supp_${s.id}`} transform={`translate(${sx}, ${beamY + beamHeight})`}>
+                <g key={`supp_${s.id}`} transform={`translate(${sx}, ${beamCenterY + halfH})`}>
                   <circle cx="0" cy="3" r="3" fill="#ffffff" stroke="#475569" strokeWidth="1.5" />
                   <polygon points="0,3 -11,17 11,17" fill="#64748b" stroke="#334155" strokeWidth="1.5" />
                   <circle cx="-5.5" cy="21" r="3.5" fill="#ffffff" stroke="#0284c7" strokeWidth="1.8" />
@@ -458,9 +556,9 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             if (s.type === 'fixed') {
               const isLeft = s.x <= beam.length / 2;
               const wallWidth = 14;
-              const wallHeight = 52;
+              const wallHeight = Math.max(52, halfH * 2 + 18);
               const wallX = isLeft ? sx - wallWidth : sx;
-              const wallY = beamY - (wallHeight - beamHeight) / 2;
+              const wallY = beamCenterY - wallHeight / 2;
 
               return (
                 <g key={`supp_${s.id}`}>
@@ -487,7 +585,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
 
             if (s.type === 'hinge') {
               return (
-                <g key={`hinge_${s.id}`} transform={`translate(${sx}, ${beamY + beamHeight / 2})`}>
+                <g key={`hinge_${s.id}`} transform={`translate(${sx}, ${beamCenterY})`}>
                   <circle cx="0" cy="0" r="7" fill="#ffffff" stroke="#d97706" strokeWidth="2.5" />
                   <circle cx="0" cy="0" r="2" fill="#d97706" />
                   <text
@@ -510,9 +608,10 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
             const sx = toSvgX(r.x);
             const isUpward = r.Fy >= 0;
             const color = '#16a34a';
+            const halfH = getHalfHeightAt(r.x);
 
             // Position reaction arrows well below the support fixture so they never collide
-            const yTop = beamY + beamHeight + 36;
+            const yTop = beamCenterY + halfH + 34;
             const yBottom = yTop + 36;
 
             const reactionText = `R = ${formatNum(Math.abs(r.Fy), 4)} ${units.force} ${isUpward ? '↑' : '↓'}`;
@@ -605,20 +704,20 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                   <g>
                     {/* Clean curved moment arc at fixed end */}
                     <path
-                      d={`M ${sx - 18},${beamY - 14} A 22 22 0 0 1 ${sx - 18},${beamY + beamHeight + 14}`}
+                      d={`M ${sx - 18},${beamCenterY - halfH - 12} A ${halfH + 18} ${halfH + 18} 0 0 1 ${sx - 18},${beamCenterY + halfH + 12}`}
                       fill="none"
                       stroke={color}
                       strokeWidth="3"
                     />
                     {/* Tangent arrowhead showing moment direction */}
                     <polygon
-                      points={`${sx - 18},${beamY - 14} ${sx - 26},${beamY - 8} ${sx - 13},${beamY - 6}`}
+                      points={`${sx - 18},${beamCenterY - halfH - 12} ${sx - 26},${beamCenterY - halfH - 6} ${sx - 13},${beamCenterY - halfH - 4}`}
                       fill={color}
                     />
                     {/* Moment Badge with ample margin */}
                     <rect
                       x={sx - rMBadgeW - 14}
-                      y={beamY + beamHeight / 2 - 10}
+                      y={beamCenterY - 10}
                       width={rMBadgeW}
                       height="20"
                       rx="5"
@@ -628,7 +727,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
                     />
                     <text
                       x={sx - rMBadgeW / 2 - 14}
-                      y={beamY + beamHeight / 2 + 4}
+                      y={beamCenterY + 4}
                       textAnchor="middle"
                       className={`${rMFontSize} font-sans font-bold fill-emerald-800 tabular-nums`}
                     >
@@ -654,7 +753,7 @@ export const BeamFBD: React.FC<BeamFBDProps> = ({
               />
               <circle
                 cx={toSvgX(hoverX)}
-                cy={beamY + beamHeight / 2}
+                cy={beamCenterY}
                 r="4.5"
                 fill="#4f46e5"
                 stroke="#ffffff"

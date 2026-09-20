@@ -61,6 +61,32 @@ export function generateCalculationSteps(
     mathLines: determinacyMath
   });
 
+  // Non-Prismatic Rigidity Distribution Step
+  const normSegments = beam.segments && beam.segments.length > 0
+    ? beam.segments
+    : [{ id: 's1', xStart: 0, xEnd: beam.length, E: beam.E ?? 200, I: beam.I ?? 100, isTapered: false }];
+
+  const isNonPrismatic = normSegments.length > 1 || normSegments.some(s => s.isTapered);
+  if (isNonPrismatic) {
+    const segLines: string[] = [];
+    normSegments.forEach((s, idx) => {
+      if (s.isTapered) {
+        segLines.push(
+          `Segment #${idx + 1} (x = ${formatNum(s.xStart)} \\to ${formatNum(s.xEnd)} ${units.length}): Tapered Profile with E = ${formatNum(s.E)} ${units.stress}, I = ${formatNum(s.I)} \\to ${formatNum(s.IEnd ?? s.I)} ${units.inertia}`
+        );
+      } else {
+        segLines.push(
+          `Segment #${idx + 1} (x = ${formatNum(s.xStart)} \\to ${formatNum(s.xEnd)} ${units.length}): Prismatic with E = ${formatNum(s.E)} ${units.stress}, I = ${formatNum(s.I)} ${units.inertia}`
+        );
+      }
+    });
+    steps.push({
+      title: '2. Cross-Section Rigidity Distribution: Non-Prismatic Profile',
+      description: 'The beam features variable flexural rigidity EI(x). The stiffness matrix automatically discretizes the cross-section variations to solve indeterminate compatibility and deflections:',
+      mathLines: segLines
+    });
+  }
+
   // Step 2: Global Equilibrium & Reactions
   const totalDownwardLoad = loads.reduce((acc, load) => {
     if (load.type === 'point') return acc + load.magnitude;

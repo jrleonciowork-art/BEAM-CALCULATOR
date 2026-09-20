@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnalysisResult, BeamProperties, Load, Support, UnitSystem } from '../../types/beam';
-import { UNIT_CONFIGS, formatNum } from '../../engine/units';
+import { UNIT_CONFIGS, formatNum, normalizeBeamSegments } from '../../engine/units';
+import { getBeamSectionAt } from '../../engine/beamSolver';
 import { ChevronRight } from 'lucide-react';
 import { IBeamIcon } from '../Common/IBeamIcon';
 import { ShearIcon, MomentIcon, DeflectionIcon, SlopeIcon } from '../Common/EngineeringIcons';
@@ -26,6 +27,9 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
 }) => {
   const units = UNIT_CONFIGS[unitSystem];
   const { diagramPoints, reactions } = result;
+  const segments = normalizeBeamSegments(beam);
+  const localSection = getBeamSectionAt(segments, xValue, unitSystem);
+  const isNonPrismatic = segments.length > 1 || segments.some((s) => s.isTapered);
 
   // Calculate exact analytical shear V and moment M at this specific xValue
   const calculateExactValues = (x: number) => {
@@ -129,6 +133,16 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
   result.criticalPoints.forEach((cp) => {
     if (cp.type === 'zero_shear' && cp.x > 0 && cp.x < beam.length) {
       jumpPoints.push({ label: `V=0 @ ${formatNum(cp.x, 4)}`, x: cp.x });
+    }
+  });
+
+  // Segment transitions for non-prismatic beams
+  segments.forEach((seg, sIdx) => {
+    if (seg.xStart > 0 && seg.xStart < beam.length) {
+      jumpPoints.push({ label: `Segment ${sIdx + 1} @ ${formatNum(seg.xStart, 2)}`, x: seg.xStart });
+    }
+    if (seg.xEnd > 0 && seg.xEnd < beam.length) {
+      jumpPoints.push({ label: `Segment ${sIdx + 1} End @ ${formatNum(seg.xEnd, 2)}`, x: seg.xEnd });
     }
   });
 
@@ -305,6 +319,26 @@ export const CrossSectionInspector: React.FC<CrossSectionInspectorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Non-Prismatic Rigidity Strip */}
+      {isNonPrismatic && (
+        <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-indigo-950">Non-Prismatic Section @ x = {formatNum(xValue, 4)} {units.length}:</span>
+            <span className="text-indigo-800">
+              Inertia <span className="font-mono font-bold">{formatNum(localSection.I, 4)}</span> {units.inertia}
+            </span>
+            <span className="text-indigo-300">|</span>
+            <span className="text-indigo-800">
+              Modulus <span className="font-mono font-bold">{formatNum(localSection.E, 4)}</span> {units.stress}
+            </span>
+            <span className="text-indigo-300">|</span>
+            <span className="text-indigo-800">
+              Rigidity <span className="font-mono font-bold">{formatNum(localSection.EI, 4)}</span> {unitSystem === 'metric' ? 'kN·m²' : 'kip·in²'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

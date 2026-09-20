@@ -20,10 +20,21 @@ export interface Load {
   momentDirection?: 'cw' | 'ccw'; // for moment loads
 }
 
+export interface BeamSegment {
+  id: string;
+  xStart: number;
+  xEnd: number;
+  E: number;          // GPa or ksi
+  I: number;          // 10^6 mm^4 or in^4 (constant I, or I_start if tapered)
+  isTapered?: boolean;
+  IEnd?: number;      // 10^6 mm^4 or in^4 (I_end if tapered)
+}
+
 export interface BeamProperties {
   length: number; // m or ft
-  E: number; // GPa or ksi
-  I: number; // 10^6 mm^4 (or cm^4/m^4) or in^4
+  E?: number;     // GPa or ksi (legacy fallback)
+  I?: number;     // 10^6 mm^4 or in^4 (legacy fallback)
+  segments?: BeamSegment[];
 }
 
 export type SignConvention = 'standard' | 'tension_side';
@@ -42,6 +53,8 @@ export interface DiagramPoint {
   moment: number;      // M(x)
   deflection: number;  // v(x) (mm or inches)
   slope: number;       // theta(x) (rad)
+  E?: number;          // local E(x)
+  I?: number;          // local I(x)
 }
 
 export interface CriticalPoint {

@@ -16,6 +16,8 @@ import {
   convertMoment,
   convertE,
   convertI,
+  convertBeamSegments,
+  normalizeBeamSegments,
   UNIT_CONFIGS,
   formatNum
 } from '../engine/units';
@@ -63,13 +65,22 @@ export const CalculatorPage: React.FC = () => {
   );
   const [isStepsOpen, setIsStepsOpen] = useState<boolean>(false);
 
-  const [beam, setBeam] = useState<BeamProperties>(
-    initialData?.beam || {
+  const [beam, setBeam] = useState<BeamProperties>(() => {
+    if (initialData?.beam) {
+      return {
+        ...initialData.beam,
+        segments: normalizeBeamSegments(initialData.beam)
+      };
+    }
+    return {
       length: 6,
       E: 200,
-      I: 100
-    }
-  );
+      I: 100,
+      segments: [
+        { id: 'seg_init_1', xStart: 0, xEnd: 6, E: 200, I: 100, isTapered: false }
+      ]
+    };
+  });
 
   const [supports, setSupports] = useState<Support[]>(
     initialData?.supports || [
@@ -112,8 +123,9 @@ export const CalculatorPage: React.FC = () => {
     if (newSystem === unitSystem) return;
 
     const newL = convertLength(beam.length, unitSystem, newSystem);
-    const newE = convertE(beam.E, unitSystem, newSystem);
-    const newI = convertI(beam.I, unitSystem, newSystem);
+    const newSegments = convertBeamSegments(normalizeBeamSegments(beam), unitSystem, newSystem);
+    const newE = newSegments[0]?.E ?? (beam.E ? convertE(beam.E, unitSystem, newSystem) : 200);
+    const newI = newSegments[0]?.I ?? (beam.I ? convertI(beam.I, unitSystem, newSystem) : 100);
     const newInspectedX = convertLength(inspectedX, unitSystem, newSystem);
 
     const newSupports = supports.map((s) => ({
@@ -147,7 +159,7 @@ export const CalculatorPage: React.FC = () => {
     });
 
     setUnitSystem(newSystem);
-    setBeam({ length: newL, E: newE, I: newI });
+    setBeam({ length: newL, E: newE, I: newI, segments: newSegments });
     setInspectedX(newInspectedX);
     setSupports(newSupports);
     setLoads(newLoads);
@@ -155,7 +167,10 @@ export const CalculatorPage: React.FC = () => {
 
   // Preset selection
   const handleSelectPreset = (preset: PresetBeam) => {
-    setBeam({ ...preset.beam });
+    setBeam({
+      ...preset.beam,
+      segments: normalizeBeamSegments(preset.beam)
+    });
     setSupports([...preset.supports]);
     setLoads([...preset.loads]);
     setInspectedX(preset.beam.length / 2);

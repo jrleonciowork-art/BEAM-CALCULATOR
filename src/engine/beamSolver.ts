@@ -1,5 +1,6 @@
 import {
   BeamProperties,
+  BeamSegment,
   Support,
   Load,
   UnitSystem,
@@ -9,7 +10,7 @@ import {
   CriticalPoint
 } from '../types/beam';
 import { Matrix } from './matrix';
-import { calculateEI, formatDeflection } from './units';
+import { calculateEI, formatDeflection, normalizeBeamSegments } from './units';
 import { generateCalculationSteps } from './analyticalSteps';
 
 interface NodeData {
@@ -20,6 +21,55 @@ interface NodeData {
   thetaDof?: number;
   thetaLeftDof?: number;
   thetaRightDof?: number;
+}
+
+/**
+ * Evaluates the cross-section properties at coordinate x along the beam segments
+ */
+export function getBeamSectionAt(
+  segments: BeamSegment[],
+  x: number,
+  unitSystem: UnitSystem
+): { E: number; I: number; EI: number; segment: BeamSegment } {
+  if (!segments || segments.length === 0) {
+    const fallbackEI = calculateEI(200, 100, unitSystem);
+    return {
+      E: 200,
+      I: 100,
+      EI: fallbackEI,
+      segment: { id: 'fallback', xStart: 0, xEnd: 10, E: 200, I: 100 }
+    };
+  }
+
+  // Find segment containing x
+  let found = segments.find(
+    (s) => x >= s.xStart - 1e-7 && x <= s.xEnd + 1e-7
+  );
+
+  if (!found) {
+    if (x < segments[0].xStart) {
+      found = segments[0];
+    } else {
+      found = segments[segments.length - 1];
+    }
+  }
+
+  let localI = found.I;
+  if (found.isTapered && found.IEnd !== undefined) {
+    const segLen = Math.max(1e-7, found.xEnd - found.xStart);
+    const t = Math.max(0, Math.min(1, (x - found.xStart) / segLen));
+    localI = found.I + (found.IEnd - found.I) * t;
+  }
+
+  const localE = found.E;
+  const localEI = calculateEI(localE, localI, unitSystem);
+
+  return {
+    E: localE,
+    I: localI,
+    EI: localEI,
+    segment: found
+  };
 }
 
 export function analyzeBeam(
@@ -55,9 +105,23 @@ export function analyzeBeam(
     emptyResult.statusMessage = 'Beam length must be strictly greater than 0.';
     return emptyResult;
   }
-  if (!beam.E || beam.E <= 0 || !beam.I || beam.I <= 0) {
-    emptyResult.statusMessage = 'Young’s modulus (E) and Moment of Inertia (I) must be positive values.';
-    return emptyResult;
+
+  const segments = normalizeBeamSegments(beam);
+
+  // Validate non-prismatic beam segments
+  for (const seg of segments) {
+    if (!seg.E || seg.E <= 0) {
+      emptyResult.statusMessage = 'Elastic modulus (E) must be positive for all segments.';
+      return emptyResult;
+    }
+    if (!seg.I || seg.I <= 0 || (seg.isTapered && (!seg.IEnd || seg.IEnd <= 0))) {
+      emptyResult.statusMessage = 'Moment of inertia (I) must be positive for all segments.';
+      return emptyResult;
+    }
+    if (seg.xEnd <= seg.xStart) {
+      emptyResult.statusMessage = 'Segment length must be greater than 0 (xEnd > xStart).';
+      return emptyResult;
+    }
   }
 
   // Filter out any supports or loads beyond beam length
@@ -86,10 +150,28 @@ export function analyzeBeam(
     return emptyResult;
   }
 
-  // 2. Identify all key coordinates along the beam
+  // 2. Identify all key coordinates along the beam (supports, loads, segment boundaries, and discretization)
   const xCoordSet = new Set<number>();
   xCoordSet.add(0);
   xCoordSet.add(beam.length);
+
+  // Segment transition nodes and tapered discretization sub-elements
+  segments.forEach(seg => {
+    if (seg.xStart >= 0 && seg.xStart <= beam.length) xCoordSet.add(seg.xStart);
+    if (seg.xEnd >= 0 && seg.xEnd <= beam.length) xCoordSet.add(seg.xEnd);
+
+    // If tapered, discretize into 16 sub-elements for high-precision finite element convergence
+    if (seg.isTapered && seg.IEnd !== undefined && Math.abs(seg.IEnd - seg.I) > 1e-6) {
+      const numSub = 16;
+      const dX = (seg.xEnd - seg.xStart) / numSub;
+      for (let s = 1; s < numSub; s++) {
+        const subX = seg.xStart + s * dX;
+        if (subX >= 0 && subX <= beam.length) {
+          xCoordSet.add(subX);
+        }
+      }
+    }
+  });
 
   validSupports.forEach(s => {
     if (s.x >= 0 && s.x <= beam.length) xCoordSet.add(s.x);
@@ -141,16 +223,22 @@ export function analyzeBeam(
   const K = Matrix.create(totalDofs, totalDofs, 0);
   const F = new Array(totalDofs).fill(0);
 
-  const EI = calculateEI(beam.E, beam.I, unitSystem);
-
   // 4. Element Assembly
   const numElements = nodes.length - 1;
+  const elementEIs: number[] = new Array(numElements).fill(0);
+
   for (let e = 0; e < numElements; e++) {
     const n1 = nodes[e];
     const n2 = nodes[e + 1];
     const Le = n2.x - n1.x;
 
     if (Le <= 1e-7) continue;
+
+    // Evaluate local EI at element midpoint
+    const midX = (n1.x + n2.x) / 2;
+    const sec = getBeamSectionAt(segments, midX, unitSystem);
+    const EI_e = sec.EI;
+    elementEIs[e] = EI_e;
 
     // Determine DOFs for this element: [v1, theta1, v2, theta2]
     const dof_v1 = n1.vDof;
@@ -163,10 +251,10 @@ export function analyzeBeam(
     // Local 4x4 stiffness matrix
     const L2 = Le * Le;
     const L3 = L2 * Le;
-    const k11 = (12 * EI) / L3;
-    const k12 = (6 * EI) / L2;
-    const k22 = (4 * EI) / Le;
-    const k24 = (2 * EI) / Le;
+    const k11 = (12 * EI_e) / L3;
+    const k12 = (6 * EI_e) / L2;
+    const k22 = (4 * EI_e) / Le;
+    const k24 = (2 * EI_e) / Le;
 
     const ke = [
       [ k11,  k12, -k11,  k12],
@@ -506,15 +594,16 @@ export function analyzeBeam(
 
                 const L4 = Le * Le * Le * Le;
                 const L3 = Le * Le * Le;
+                const elemEI = elementEIs[e] || calculateEI(200, 100, unitSystem);
 
                 // Fixed-Fixed particular solution:
                 // v_p(xi) = - (wu * L4 / (24*EI)) * xi^2 * (1 - xi)^2
                 //         - (dw * L4 / (120*EI)) * (2*xi^2 - 3*xi^3 + xi^5)
-                const vp_u = - (wu * L4 / (24 * EI)) * (xi2 - 2 * xi3 + xi4);
-                const dvp_u = - (wu * L3 / (24 * EI)) * (2 * xi - 6 * xi2 + 4 * xi3);
+                const vp_u = - (wu * L4 / (24 * elemEI)) * (xi2 - 2 * xi3 + xi4);
+                const dvp_u = - (wu * L3 / (24 * elemEI)) * (2 * xi - 6 * xi2 + 4 * xi3);
 
-                const vp_dw = - (dw * L4 / (120 * EI)) * (2 * xi2 - 3 * xi3 + xi4 * xi);
-                const dvp_dw = - (dw * L3 / (120 * EI)) * (4 * xi - 9 * xi2 + 5 * xi4);
+                const vp_dw = - (dw * L4 / (120 * elemEI)) * (2 * xi2 - 3 * xi3 + xi4 * xi);
+                const dvp_dw = - (dw * L3 / (120 * elemEI)) * (4 * xi - 9 * xi2 + 5 * xi4);
 
                 vDisp += (vp_u + vp_dw);
                 slope += (dvp_u + dvp_dw);
@@ -527,13 +616,16 @@ export function analyzeBeam(
     }
 
     const deflectionDisplay = formatDeflection(vDisp, unitSystem);
+    const secAtX = getBeamSectionAt(segments, x, unitSystem);
 
     diagramPoints.push({
       x,
       shear: V,
       moment: M,
       deflection: deflectionDisplay,
-      slope
+      slope,
+      E: secAtX.E,
+      I: secAtX.I
     });
 
     if (V > maxShear) maxShear = V;
